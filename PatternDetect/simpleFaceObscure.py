@@ -4,10 +4,38 @@ import cv2.aruco as aruco
 import numpy as np
 
 
-# Credit: alpython.com/blog/python/face-detection-in-python-using-a-webcam/
+def thresholdScore(x_diff, y_diff):
+    return (x_diff**2+y_diff)
 
-# Slightly modified by Jeff
-# Press q to quit the window
+def getBlockedFaces(corners, faces):
+    blockedFaces = []
+    faceCentres = []
+
+    for (x, y, w, h) in faces:
+        faceCentres.append(np.array([x+w/2,y+h/2]))
+
+    # Loop through all the markers
+    for marker in corners:
+
+        # get the centre of the marker
+        markerCentre = marker.mean(axis=0)
+
+        # create empty array to rank faces
+        faceScore = []
+
+        # Loop through all face centres and compare to the marker centres
+        for faceCentre in faceCentres:
+            faceCentre[0] #x
+            faceCentre[1] #y
+            
+            x_diff = abs(faceCentre[0]-markerCentre[0])
+            y_diff = abs(faceCentre[1]-markerCentre[1])
+            faceScore.append(thresholdScore(x_diff, y_diff))
+
+        # Append the face with the nearest centre to the new array
+        blockedFaces.append(faces[np.argmin(faceScore)])
+
+    return blockedFaces
 
 cascPath = "haarcascade_frontalface_default.xml"
 faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + cascPath)
@@ -37,16 +65,15 @@ while True:
     
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
+    faces = []
     # Detect front faces
-    faces = faceCascade.detectMultiScale(
+    faces_straight = faceCascade.detectMultiScale(
         gray,
         scaleFactor=1.2,
         minNeighbors=5,
         minSize=(30, 30),
         flags=cv2.CASCADE_SCALE_IMAGE
     )
-
-
     
     # Detect right-turned profile faces
     faces_profile_right = profileFaceCascade.detectMultiScale(
@@ -72,23 +99,39 @@ while True:
         flags=cv2.CASCADE_SCALE_IMAGE
     )
 
+    for f in faces_straight:
+        faces.append(f)
+    for f in faces_profile_right:
+        faces.append(f)
+    for f in faces_profile_left:
+        faces.append(f)
+
+
 
     # Display the resulting frame
     
         # Lists of ids and the corners beloning to each id
     corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
     if detectCount<detectDelay or ids is not None:
-        print(f'Detecting ArUco with ID:{ids}')
+        
+        
+        #blockedFaces = getBlockedFaces(corners[0], faces)
+        # getBlockedFaces returns array of coordinates for faces to block
+
+        #print(f'Detecting ArUco with ID:{ids}')
         if ids is None:
             detectCount +=1
             cv2.putText(frame, 'No marker - maintaining block', (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
-        else:
+            
+            # In here must make a function that chooses the face with the centre nearest to the previously blocked face
+        elif faces:
             detectCount = 0
+            blockedFaces = getBlockedFaces(corners[0], faces)
             cv2.putText(frame, 'Marker detected - blocking', (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
 
-        for (x, y, w, h) in faces:
+        for (x, y, w, h) in blockedFaces:
             cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 0), -1)
-
+        """
             # Draw a rectangle around right profile faces (light blue)
         for (x, y, w, h) in faces_profile_right:
             cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 0), -1)
@@ -96,7 +139,7 @@ while True:
             # Draw a rectangle around left profile faces (dark blue)
         for (x, y, w, h) in faces_profile_left:
             cv2.rectangle(frame, (w_dim-x, y), (w_dim-x-w, y+h), (0, 0, 0), -1)
-
+        """
     else:
         cv2.putText(frame, 'No marker - showing faces', (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
 
