@@ -41,35 +41,48 @@ def getBlockedFaces(corners, faces):
 
     return blockedFaces
 
-extension = ".avi"
-now = datetime.now()
-current_time = now.strftime("%Y-%m-%d %H-%M-%S")
-out_video_name = current_time + extension
-out_folder = "recordings/"
+
 
 # Parsing command-line arguments:
 parser = argparse.ArgumentParser()
 parser.add_argument("-v", "--video", action='store', help="Video File Path", required=False)
 parser.add_argument("-r", "--record", action='store_true', help="Enable recording", required=False)
 parser.add_argument("-ui", action='store_true', help="Disable all features, leaving just the raw webcam", required=False)
+parser.add_argument("-n", "--name", action='store', help="Provide a file name to store recording as", required=False)
 
 args = parser.parse_args()
 
+# Setting the recording's file name
+extension = ".avi"
+if args.name:
+    # Set the recording's name instead of the default date/time
+    out_video_name = args.name + extension
+else:
+    # Set the recording's name to be the current date/time
+    now = datetime.now()
+    current_time = now.strftime("%Y-%m-%d %H-%M-%S")
+    out_video_name = current_time + extension
+out_folder = "recordings/"
+in_folder = "recordings/"
+
 if args.video:
     # Set input to be the video defined in the command line argument
-    print("Video feed input from: ", args.video)
-    video_capture = cv2.VideoCapture(args.video)
+    in_video_name = args.video + extension
+    print("Video feed input from: ", in_folder, in_video_name)
+    video_capture = cv2.VideoCapture(in_folder + in_video_name)
     if(video_capture.isOpened() == False):
-        print("Error opening video from: "+str(args.video))
+        print("Error opening video from: ", in_video_folder, in_video_name)
 
 else:
     # Default to webcam as the input
     print("No video feed inputted, using webcam as input")
     video_capture = cv2.VideoCapture(0)
+    in_video_name = "No input"  
     
 if args.record:
+        
     # Set the webcam to record, and output the recording 
-    print("Recording webcam and saving to file: ", out_video_name)
+    print("Recording webcam and saving to file: ", out_folder, out_video_name)
     #video_capture = cv2.VideoCapture(0)
 
 cascPath = "haarcascade_frontalface_default.xml"
@@ -102,18 +115,19 @@ detectCount = 60
 detectDelay = 17
 
 print("debug:")
-print(args.video)
+print("out_video_name: " +str(out_video_name))
+print("in_video_name: " +str(in_video_name))
 print(video_capture.isOpened())
 
 #while True:
-while not args.video or video_capture.isOpened():
+while video_capture.isOpened():
 
-    """
+    
     # Check if the input video has ended
     if (args.video and not video_capture.isOpened()):
         print("end of video")
         break
-"""
+
     # Capture frame-by-frame
     ret, frame = video_capture.read()
 
@@ -125,7 +139,7 @@ while not args.video or video_capture.isOpened():
 
     else:
         # Continue adding UI elements as normal
-
+        
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         faces = []
@@ -210,14 +224,14 @@ while not args.video or video_capture.isOpened():
 
     # Show frame
 
-    cv2.imshow('Video', frame)
+    cv2.imshow('PatternDetect', frame)
 
     # "q" key pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
         
     # "esc" key pressed
-    if cv2.waitKey(1) & 0xFF == ord('\x1b'):
+    if cv2.waitKey(1) & 0xFF == ord("\x1b"):
         break
     # ^ this doesnt work yet btw
 
