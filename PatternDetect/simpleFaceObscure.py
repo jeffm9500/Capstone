@@ -59,6 +59,8 @@ if args.video:
     # Set input to be the video defined in the command line argument
     print("Video feed input from: ", args.video)
     video_capture = cv2.VideoCapture(args.video)
+    if(video_capture.isOpened() == False):
+        print("Error opening video from: "+str(args.video))
 
 else:
     # Default to webcam as the input
