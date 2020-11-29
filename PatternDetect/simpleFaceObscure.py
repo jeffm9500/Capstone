@@ -7,9 +7,19 @@ from time import strftime
 from datetime import datetime
 
 
+def closestFace(prevCentre, faceCentres):
+    faceCentres = np.asarray(faceCentres)
+    dist_2 = np.sum((faceCentres - prevCentre)**2, axis=1)
+    return np.argmin(dist_2)
 
 def thresholdScore(x_diff, y_diff):
     return (x_diff**2+y_diff)
+
+def getFaceCentres(faces):
+    faceCentres=[]
+    for (x, y, w, h) in faces:
+            faceCentres.append(np.array([x+w/2,y+h/2]))   
+    return faceCentres 
 
 def getBlockedFaces(corners, faces):
     blockedFaces = []
@@ -91,7 +101,8 @@ faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + cascPath)
 profileCascPath = "haarcascade_profileface.xml"
 profileFaceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + profileCascPath)
 
-
+blockedFaces =[]
+ids = []
 
 # Gather width and height of input webcam
 w_dim = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -188,17 +199,25 @@ while video_capture.isOpened():
             # Lists of ids and the corners beloning to each id
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
         if detectCount<detectDelay or ids is not None:
-            
-            
-            #blockedFaces = getBlockedFaces(corners[0], faces)
-            # getBlockedFaces returns array of coordinates for faces to block
-
-            #print(f'Detecting ArUco with ID:{ids}')
             if ids is None:
+                ids = []
+            if len(ids) < prevNumBlocked and detectCount<detectDelay and faces:
+                # Continue blocking the same faces from before (lost sight of an ID, still within the delay)
+
                 detectCount +=1
-                cv2.putText(frame, 'No marker - maintaining block', (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
-                
+                cv2.putText(frame, 'Lost marker - maintaining blocks', (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
                 # In here must make a function that chooses the face with the centre nearest to the previously blocked face
+
+                faceCentres = getFaceCentres(faces)
+                # Calculate centres of current faces being detected. Block the centres that are nearest to the blockedFaces centres
+
+                prevBlocked = blockedFaces
+                blockedFaces = []
+                for (x,y,w,h) in prevBlocked:
+                    blockedFaces.append(faces[closestFace(np.array([x+w/2,y+h/2]),faceCentres)])
+                
+                # find nearest faces in faceCentres
+            
             elif faces:
                 detectCount = 0
                 blockedFaces = getBlockedFaces(corners[0], faces)
@@ -206,15 +225,7 @@ while video_capture.isOpened():
 
             for (x, y, w, h) in blockedFaces:
                 cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 0), -1)
-            """
-                # Draw a rectangle around right profile faces (light blue)
-            for (x, y, w, h) in faces_profile_right:
-                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 0), -1)
 
-                # Draw a rectangle around left profile faces (dark blue)
-            for (x, y, w, h) in faces_profile_left:
-                cv2.rectangle(frame, (w_dim-x, y), (w_dim-x-w, y+h), (0, 0, 0), -1)
-            """
         else:
             cv2.putText(frame, 'No marker - showing faces', (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
 
@@ -225,6 +236,8 @@ while video_capture.isOpened():
     # Show frame
 
     cv2.imshow('PatternDetect', frame)
+
+    prevNumBlocked = len(blockedFaces)
 
     # "q" key pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
