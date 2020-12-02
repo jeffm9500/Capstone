@@ -12,13 +12,13 @@ def blur():
 
     capture = cv2.VideoCapture(0)
 
-    blurred = False
+    blurred = True
     framed = False
 
     while True:
-
+        
         img, frame = capture.read()
-
+        
         if(img):    # if face is captured
             gray = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
             blockedFaces = face.detectMultiScale(gray,scaleFactor = 1.1,minNeighbors = 7)
@@ -38,20 +38,13 @@ def blur():
                 # initializes a frame around the recognized face
                 if framed:
                     cv2.rectangle(frame,(x,y),(x+h,y+w),(255,255,0),2)
-
+            
             cv2.imshow('Face Recognized', frame)   
-
+        
         ch = 0xFF &cv2.waitKey(1)
-
-        # initialize blur by pressing "b"
-        if ch == ord("b"):
-            blurred = not blurred
-
+    
         # initialize face framing by pressing "f"
-        if ch == ord("f"):
-            framed = not framed
-
-        # quit frame by pressing "q"
-        if ch ==ord("q"):
+        if ch == ord("q"):
             break
+
 blur()
