@@ -5,46 +5,68 @@ import os
 import time
 import argparse
 
-# SOURCE: https://medium.com/@bipinadvani/face-recognition-and-blurring-in-webcam-using-cv2-python-5c4c589e6e59
 
-def blur():
-    face = cv2.CascadeClassifier('C:/opencv/sources/data/haarcascades/haarcascade_frontalface_default.xml')
+def blur(blockedFaces, inFrame):
+    frame = inFrame
+    for (x,y,w,h) in blockedFaces:
+        # create a sub-face from detected faces
+        sub_face = frame[y:y+h, x:x+w]
 
-    capture = cv2.VideoCapture(0)
+        # apply Gaussian Blur on sub-face
+        sub_face = cv2.GaussianBlur(sub_face,(35,35), 50)   # values for blurring obtained through trial and error
 
-    blurred = True
-    framed = False
+        # merge rectangle with Gaussian Blur and final image
+        frame[y:y+sub_face.shape[0], x:x+sub_face.shape[1]] = sub_face
 
-    while True:
-        
-        img, frame = capture.read()
-        
-        if(img):    # if face is captured
-            gray = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY)
-            blockedFaces = face.detectMultiScale(gray,scaleFactor = 1.1,minNeighbors = 7)
+    return frame
 
-            for x,y,w,h in blockedFaces:
-                # if no blur initialized
-                if blurred:
-                    # create a sub-face from detected faces
-                    sub_face = frame[y:y+h, x:x+w]
+def block(blockedFaces, inFrame):
+    frame = inFrame
+    for (x, y, w, h) in blockedFaces:
+        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 0), -1)
+    return frame
 
-                    # apply Gaussian Blur on sub-face
-                    sub_face = cv2.GaussianBlur(sub_face,(35,35), 50)   # values for blurring obtained through trial and error
+def closestFace(prevCentre, faceCentres):
+    faceCentres = np.asarray(faceCentres)
+    dist_2 = np.sum((faceCentres - prevCentre)**2, axis=1)
+    return np.argmin(dist_2)
 
-                    # merge rectangle with Gaussian Blur and final image
-                    frame[y:y+sub_face.shape[0], x:x+sub_face.shape[1]] = sub_face
+def thresholdScore(x_diff, y_diff):
+    return (x_diff**2+y_diff)
 
-                # initializes a frame around the recognized face
-                if framed:
-                    cv2.rectangle(frame,(x,y),(x+h,y+w),(255,255,0),2)
+def getFaceCentres(faces):
+    faceCentres=[]
+    for (x, y, w, h) in faces:
+            faceCentres.append(np.array([x+w/2,y+h/2]))   
+    return faceCentres 
+
+
+def getBlockedFaces(corners, faces):
+    blockedFaces = []
+    faceCentres = []
+
+    for (x, y, w, h) in faces:
+        faceCentres.append(np.array([x+w/2,y+h/2]))
+
+    # Loop through all the markers
+    for marker in corners:
+
+        # get the centre of the marker
+        markerCentre = marker.mean(axis=0)
+
+        # create empty array to rank faces
+        faceScore = []
+
+        # Loop through all face centres and compare to the marker centres
+        for faceCentre in faceCentres:
+            faceCentre[0] #x
+            faceCentre[1] #y
             
-            cv2.imshow('Face Recognized', frame)   
-        
-        ch = 0xFF &cv2.waitKey(1)
-    
-        # initialize face framing by pressing "f"
-        if ch == ord("q"):
-            break
+            x_diff = abs(faceCentre[0]-markerCentre[0])
+            y_diff = abs(faceCentre[1]-markerCentre[1])
+            faceScore.append(thresholdScore(x_diff, y_diff))
 
-blur()
+        # Append the face with the nearest centre to the new array
+        blockedFaces.append(faces[np.argmin(faceScore)])
+
+    return blockedFaces

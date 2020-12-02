@@ -5,51 +5,8 @@ import numpy as np
 import argparse
 from time import strftime
 from datetime import datetime
+from helperFunctions import *
 
-
-def closestFace(prevCentre, faceCentres):
-    faceCentres = np.asarray(faceCentres)
-    dist_2 = np.sum((faceCentres - prevCentre)**2, axis=1)
-    return np.argmin(dist_2)
-
-def thresholdScore(x_diff, y_diff):
-    return (x_diff**2+y_diff)
-
-def getFaceCentres(faces):
-    faceCentres=[]
-    for (x, y, w, h) in faces:
-            faceCentres.append(np.array([x+w/2,y+h/2]))   
-    return faceCentres 
-
-def getBlockedFaces(corners, faces):
-    blockedFaces = []
-    faceCentres = []
-
-    for (x, y, w, h) in faces:
-        faceCentres.append(np.array([x+w/2,y+h/2]))
-
-    # Loop through all the markers
-    for marker in corners:
-
-        # get the centre of the marker
-        markerCentre = marker.mean(axis=0)
-
-        # create empty array to rank faces
-        faceScore = []
-
-        # Loop through all face centres and compare to the marker centres
-        for faceCentre in faceCentres:
-            faceCentre[0] #x
-            faceCentre[1] #y
-            
-            x_diff = abs(faceCentre[0]-markerCentre[0])
-            y_diff = abs(faceCentre[1]-markerCentre[1])
-            faceScore.append(thresholdScore(x_diff, y_diff))
-
-        # Append the face with the nearest centre to the new array
-        blockedFaces.append(faces[np.argmin(faceScore)])
-
-    return blockedFaces
 
 
 
@@ -101,8 +58,6 @@ faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + cascPath)
 profileCascPath = "haarcascade_profileface.xml"
 profileFaceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + profileCascPath)
 
-blockedFaces =[]
-ids = []
 
 # Gather width and height of input webcam
 w_dim = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -113,24 +68,33 @@ if args.record:
     video_output = cv2.VideoWriter(out_folder + out_video_name, fourcc, 30.0, (w_dim,h_dim))
 
 
-#video_output = cv2.VideoWriter('test.avi', fourcc, 20.0, (w_dim,h_dim))
-
-# ArUco parameter preparation
-aruco_dict = aruco.Dictionary_get(aruco.DICT_6X6_250)
-parameters =  aruco.DetectorParameters_create()
-
-# have a delay if temporary glitch in ArUco detection
-detectCount = 60
-
-# How many frames to wait without marker to continue obscuring face
-detectDelay = 17
-
 print("debug:")
 print("out_video_name: " +str(out_video_name))
 print("in_video_name: " +str(in_video_name))
 print(video_capture.isOpened())
 
-#while True:
+
+"""
+SCRIPT PARAMETERS
+"""
+# ArUco parameter preparation
+aruco_dict = aruco.Dictionary_get(aruco.DICT_6X6_250)
+parameters =  aruco.DetectorParameters_create()
+
+# Face detect/obscuring parameters
+blockedFaces = []
+ids = []
+blurMode = 0 # Change this to 1 to switch to blur instead of obstruct
+
+# How many frames to wait without marker to continue obscuring face
+detectDelay = 17
+
+# Initial value to compare to the maximum delay of frames to wait without marker (detectDelay)
+detectCount = 18
+
+
+
+# Initialize webcam video stream:
 while video_capture.isOpened():
 
     
@@ -149,8 +113,7 @@ while video_capture.isOpened():
             video_output.write(frame)
 
     else:
-        # Continue adding UI elements as normal
-        
+        # Continue adding UI elements as normal     
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         faces = []
@@ -223,12 +186,20 @@ while video_capture.isOpened():
                 blockedFaces = getBlockedFaces(corners[0], faces)
                 cv2.putText(frame, 'Marker detected - blocking', (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
 
-            for (x, y, w, h) in blockedFaces:
-                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 0, 0), -1)
+
+
+            # Decides if use Gaussian blur or the full obstruct
+            if blurMode == 0:
+                frame = block(blockedFaces, frame)
+            elif blurMode == 1:
+                frame = blur(blockedFaces, frame)
+            else:
+                # Do not block/blur anything
+                pass
+            
 
         else:
             cv2.putText(frame, 'No marker - showing faces', (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
-
         
         if args.record:
             video_output.write(frame)
@@ -236,17 +207,16 @@ while video_capture.isOpened():
     # Show frame
 
     cv2.imshow('PatternDetect', frame)
-
     prevNumBlocked = len(blockedFaces)
 
     # "q" key pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
-        
+
     # "esc" key pressed
     if cv2.waitKey(1) & 0xFF == ord("\x1b"):
         break
-    # ^ this doesnt work yet btw
+    # ^ this doesnt work yet
 
 
 # When everything is done, release the capture
