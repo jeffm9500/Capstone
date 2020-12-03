@@ -14,8 +14,9 @@ from helperFunctions import *
 parser = argparse.ArgumentParser()
 parser.add_argument("-v", "--video", action='store', help="Video File Path", required=False)
 parser.add_argument("-r", "--record", action='store_true', help="Enable recording", required=False)
-parser.add_argument("-ui", action='store_true', help="Disable all features, leaving just the raw webcam", required=False)
+parser.add_argument("-ui", "--userint", action='store_true', help="Disable all features, leaving just the raw webcam", required=False)
 parser.add_argument("-n", "--name", action='store', help="Provide a file name to store recording as", required=False)
+parser.add_argument("-b", "--blur", action='store_true', help="Enable blurring instead of black box obscuring", required=False)
 
 args = parser.parse_args()
 
@@ -72,6 +73,8 @@ print("debug:")
 print("out_video_name: " +str(out_video_name))
 print("in_video_name: " +str(in_video_name))
 print(video_capture.isOpened())
+if args.userint:
+    print("ui disabled")
 
 
 """
@@ -84,7 +87,12 @@ parameters =  aruco.DetectorParameters_create()
 # Face detect/obscuring parameters
 blockedFaces = []
 ids = []
-blurMode = 0 # Change this to 1 to switch to blur instead of obstruct
+prevNumBlocked = 0
+# Change this to 1 to switch to blur instead of obstruct
+if args.blur:
+    blurMode = 1
+else:
+    blurMode = 0
 
 # How many frames to wait without marker to continue obscuring face
 detectDelay = 17
@@ -107,7 +115,8 @@ while video_capture.isOpened():
     ret, frame = video_capture.read()
 
     # If -ui is enabled, then only the raw webcam should be recorded
-    if args.ui:
+    if args.userint:
+        
         # Don't add any elements to the frame, just the raw footage
         if args.record:
             video_output.write(frame)
