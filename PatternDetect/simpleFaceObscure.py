@@ -7,16 +7,17 @@ from time import strftime
 from datetime import datetime
 from helperFunctions import *
 
-
+t = time.time()
 
 
 # Parsing command-line arguments:
 parser = argparse.ArgumentParser()
-parser.add_argument("-v", "--video", action='store', help="Video File Path", required=False)
+parser.add_argument("-v", "--video", action='store', help="Video File Path (include extension)", required=False)
 parser.add_argument("-r", "--record", action='store_true', help="Enable recording", required=False)
 parser.add_argument("-ui", "--userint", action='store_true', help="Disable all features, leaving just the raw webcam", required=False)
-parser.add_argument("-n", "--name", action='store', help="Provide a file name to store recording as", required=False)
+parser.add_argument("-n", "--name", action='store', help="Provide a file name to store recording as (include extension)", required=False)
 parser.add_argument("-b", "--blur", action='store_true', help="Enable blurring instead of black box obscuring", required=False)
+parser.add_argument("--hide", action='store_true', help="Hide the output window", required=False)
 
 args = parser.parse_args()
 
@@ -24,7 +25,7 @@ args = parser.parse_args()
 extension = ".avi"
 if args.name:
     # Set the recording's name instead of the default date/time
-    out_video_name = args.name + extension
+    out_video_name = args.name #+ extension
 else:
     # Set the recording's name to be the current date/time
     now = datetime.now()
@@ -35,11 +36,11 @@ in_folder = "recordings/"
 
 if args.video:
     # Set input to be the video defined in the command line argument
-    in_video_name = args.video + extension
-    print("Video feed input from: ", in_folder, in_video_name)
+    in_video_name = args.video #+ extension
+    print(f"Video feed input from: {in_folder}{in_video_name}")
     video_capture = cv2.VideoCapture(in_folder + in_video_name)
     if(video_capture.isOpened() == False):
-        print("Error opening video from: ", in_video_folder, in_video_name)
+        print(f"Error opening video from: {in_folder}{in_video_name}")
 
 else:
     # Default to webcam as the input
@@ -50,7 +51,7 @@ else:
 if args.record:
         
     # Set the webcam to record, and output the recording 
-    print("Recording webcam and saving to file: ", out_folder, out_video_name)
+    print(f"Recording webcam and saving to file: {out_folder}{out_video_name}")
     #video_capture = cv2.VideoCapture(0)
 
 cascPath = "haarcascade_frontalface_default.xml"
@@ -66,16 +67,17 @@ h_dim = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 if args.record:
-    video_output = cv2.VideoWriter(out_folder + out_video_name, fourcc, 30.0, (w_dim,h_dim))
+    video_output = cv2.VideoWriter(filename=out_folder + out_video_name, fourcc=fourcc, fps=30.0, frameSize=(w_dim,h_dim))
 
 
 print("debug:")
-print("out_video_name: " +str(out_video_name))
 print("in_video_name: " +str(in_video_name))
-print(video_capture.isOpened())
+print("out_video_name: " +str(out_video_name))
+print("input open: ",video_capture.isOpened())
 if args.userint:
     print("ui disabled")
-
+if args.hide:
+    print("window hidden")
 
 """
 SCRIPT PARAMETERS
@@ -88,6 +90,7 @@ parameters =  aruco.DetectorParameters_create()
 blockedFaces = []
 ids = []
 prevNumBlocked = 0
+
 # Change this to 1 to switch to blur instead of obstruct
 if args.blur:
     blurMode = 1
@@ -105,14 +108,13 @@ detectCount = 18
 # Initialize webcam video stream:
 while video_capture.isOpened():
 
-    
-    # Check if the input video has ended
-    if (args.video and not video_capture.isOpened()):
-        print("end of video")
-        break
-
     # Capture frame-by-frame
-    ret, frame = video_capture.read()
+    success, frame = video_capture.read()
+
+    # Check if the input video has ended
+    if not success:
+        print("End of video")
+        break
 
     # If -ui is enabled, then only the raw webcam should be recorded
     if args.userint:
@@ -122,25 +124,29 @@ while video_capture.isOpened():
             video_output.write(frame)
 
     else:
+        
         # Continue adding UI elements as normal     
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         faces = []
         # Detect front faces
+        sf = 1.4
+        mn = 4
+        ms = (30, 30)
         faces_straight = faceCascade.detectMultiScale(
             gray,
-            scaleFactor=1.2,
-            minNeighbors=5,
-            minSize=(30, 30),
+            scaleFactor=sf,
+            minNeighbors=mn,
+            minSize=ms,
             flags=cv2.CASCADE_SCALE_IMAGE
         )
     
         # Detect right-turned profile faces
         faces_profile_right = profileFaceCascade.detectMultiScale(
             gray,
-            scaleFactor=1.2,
-            minNeighbors=5,
-            minSize=(30,30),
+            scaleFactor=sf,
+            minNeighbors=mn,
+            minSize=ms,
             flags=cv2.CASCADE_SCALE_IMAGE
         )
 
@@ -151,9 +157,9 @@ while video_capture.isOpened():
         # Detect left-turned profile faces
         faces_profile_left = profileFaceCascade.detectMultiScale(
             gray_swap,
-            scaleFactor=1.2,
-            minNeighbors=5,
-            minSize=(30,30),
+            scaleFactor=sf,
+            minNeighbors=mn,
+            minSize=ms,
             flags=cv2.CASCADE_SCALE_IMAGE
         )
 
@@ -213,23 +219,24 @@ while video_capture.isOpened():
         if args.record:
             video_output.write(frame)
 
-    # Show frame
+    
+    # Check if frame should be hidden
+    if not args.hide:
+        # Show frame
+        cv2.imshow('PatternDetect', frame)
 
-    cv2.imshow('PatternDetect', frame)
     prevNumBlocked = len(blockedFaces)
 
     # "q" key pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-    # "esc" key pressed
-    if cv2.waitKey(1) & 0xFF == ord("\x1b"):
-        break
-    # ^ this doesnt work yet
 
 
 # When everything is done, release the capture
 video_capture.release()
 if args.record:
     video_output.release()
+
+print(f"Elapsed time: {time.time()-t:.2f}s")
 cv2.destroyAllWindows()
