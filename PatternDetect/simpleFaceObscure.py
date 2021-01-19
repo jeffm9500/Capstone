@@ -65,6 +65,7 @@ profileFaceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + profileCascPa
 w_dim = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
 h_dim = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
+
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 if args.record:
     video_output = cv2.VideoWriter(filename=out_folder + out_video_name, fourcc=fourcc, fps=30.0, frameSize=(w_dim,h_dim))
@@ -100,10 +101,7 @@ parameters.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX
 #parameters.errorCorrectionRate = 1
 #parameters.maxErroneousBitsInBorderRate = .9
 
-
-
 #parameters.minOtsuStdDev = 0.1
-
 
 #parameters.cornerRefinementWinSize = 20
 #parameters.minDistanceToBorder = 5
@@ -113,6 +111,7 @@ parameters.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX
 blockedFaces = []
 ids = []
 prevNumBlocked = 0
+prevFaces = []
 
 # Change this to 1 to switch to blur instead of obstruct
 if args.blur:
@@ -127,6 +126,13 @@ detectDelay = 17
 detectCount = 18
 
 
+# Bounds for "in camera view" field
+xMin = w_dim*.1
+xMax = w_dim*.9
+yMin = h_dim*.1
+yMax = h_dim*.9
+
+print(f'xMin: {xMin}\nxMax: {xMax}\nyMin: {yMin}\nyMax: {yMax}')
 
 # Initialize webcam video stream:
 while video_capture.isOpened():
@@ -186,24 +192,28 @@ while video_capture.isOpened():
             flags=cv2.CASCADE_SCALE_IMAGE
         )
 
+
         for f in faces_straight:
             faces.append(f)
         for f in faces_profile_right:
             faces.append(f)
         for f in faces_profile_left:
+            # to account for the previous frame flip
+            f[0] = w_dim-f[0]-f[2]
             faces.append(f)
 
-
+        
 
         # Display the resulting frame
         
-            # Lists of ids and the corners beloning to each id
+        # Lists of ids and the corners beloning to each id
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
         aruco.drawDetectedMarkers(frame, rejectedImgPoints, borderColor=(0,0,255))
         aruco.drawDetectedMarkers(frame, corners)
 
         #for i in rejectedImgPoints:
-        #    corners.append(i)
+        # Used for displaying rejected contours
+        #   corners.append(i)
             #print(f'rejected: {i}')
             #ids.append([1])
 
@@ -211,7 +221,7 @@ while video_capture.isOpened():
             if ids is None:
                 ids = []
             if len(ids) < prevNumBlocked and detectCount<detectDelay and faces:
-                # Continue blocking the same faces from before (lost sight of an ID, still within the delay)
+                # Continue blocking the same faces from before (case: lost sight of an ID, still within the delay)
 
                 detectCount +=1
                 cv2.putText(frame, 'Lost marker - maintaining blocks', (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
@@ -227,10 +237,25 @@ while video_capture.isOpened():
                 
                 # find nearest faces in faceCentres
             
+
+            elif False:
+                pass
+                # want to make the condition that if a face disappears within the centre region of the frame, continue blocking the area (geometric approach, improves the blocking capacity)
+                # define centre region
+                    # If the value of the centre of the face that disappears is within the border, keep blocking?
+                
+                len(ids) >= prevNumBlocked and checkLostFaces(prevFaces, faces, w_dim, h_dim)
+
+
             elif faces:
+                # else, the number of faces increases or stays the same
                 detectCount = 0
                 blockedFaces = getBlockedFaces(corners, faces)
                 cv2.putText(frame, 'Marker detected - blocking', (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
+
+
+
+
 
             else:
                 cv2.putText(frame, 'Not getting anything', (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
@@ -258,9 +283,15 @@ while video_capture.isOpened():
     # Check if frame should be hidden
     if not args.hide:
         # Show frame
+        
+        if len(faces)>0:
+            #print("\n")
+            for (x,y,w,h) in faces:
+                cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 1)
         cv2.imshow('PatternDetect', frame)
 
     prevNumBlocked = len(blockedFaces)
+    prevFaces = faces
 
     # "q" key pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):

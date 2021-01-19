@@ -70,3 +70,11 @@ def getBlockedFaces(corners, faces):
         # Append the face with the nearest centre to the new array
         blockedFaces.append(faces[np.argmin(faceScore)])
     return blockedFaces
+
+def checkLostFaces(prevFaces, faces, w_dim, h_dim):
+    #total number is different AND the inside number is different
+    if len(prevFaces) != len(faces):
+        pass
+        return False
+    else:
+        return False
