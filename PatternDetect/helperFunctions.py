@@ -51,6 +51,7 @@ def getBlockedFaces(corners, faces):
     # Loop through all the markers
     for marker in corners:
 
+        marker = marker[0]
         # get the centre of the marker
         markerCentre = marker.mean(axis=0)
 
@@ -68,5 +69,4 @@ def getBlockedFaces(corners, faces):
 
         # Append the face with the nearest centre to the new array
         blockedFaces.append(faces[np.argmin(faceScore)])
-
     return blockedFaces

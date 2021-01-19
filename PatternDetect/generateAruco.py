@@ -7,9 +7,9 @@ Script generates an ArUco marker and saves it under test_marker.jpg. The marker 
 """
 
 # Use this to specify which ID of marker to be genreated. Choose between 1-250.
-markerID = 2
+markerID = 3
 
-aruco_dict = aruco.Dictionary_get(aruco.DICT_6X6_250)
+aruco_dict = aruco.Dictionary_get(aruco.DICT_5X5_50)
 print(aruco_dict)
 
 # Final parameter in drawMarker is the total image size

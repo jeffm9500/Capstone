@@ -21,7 +21,7 @@ parser.add_argument("-b", "--blur", action='store_true', help="Enable blurring i
 args = parser.parse_args()
 
 # Setting the recording's file name
-extension = ".avi"
+extension = ".m4v"
 if args.name:
     # Set the recording's name instead of the default date/time
     out_video_name = args.name + extension
@@ -39,7 +39,7 @@ if args.video:
     print("Video feed input from: ", in_folder, in_video_name)
     video_capture = cv2.VideoCapture(in_folder + in_video_name)
     if(video_capture.isOpened() == False):
-        print("Error opening video from: ", in_video_folder, in_video_name)
+        print(f'Error opening video from: {in_folder}{in_video_name}')
 
 else:
     # Default to webcam as the input
@@ -66,7 +66,7 @@ h_dim = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
 if args.record:
-    video_output = cv2.VideoWriter(out_folder + out_video_name, fourcc, 30.0, (w_dim,h_dim))
+    video_output = cv2.VideoWriter(out_folder + out_video_name, fourcc, 5.0, (w_dim,h_dim))
 
 
 print("debug:")
@@ -81,8 +81,31 @@ if args.userint:
 SCRIPT PARAMETERS
 """
 # ArUco parameter preparation
-aruco_dict = aruco.Dictionary_get(aruco.DICT_6X6_250)
+aruco_dict = aruco.Dictionary_get(aruco.DICT_5X5_50)
 parameters =  aruco.DetectorParameters_create()
+
+
+parameters.cornerRefinementMethod = aruco.CORNER_REFINE_SUBPIX
+#parameters.cornerRefinementWinSize = 30
+#parameters.cornerRefinementMinAccuracy = 0.15
+#parameters.cornerRefinementMaxIterations = 60
+#parameters.markerBorderBits = 5
+
+#parameters.polygonalApproxAccuracyRate = 0.03
+#parameters.adaptiveThreshWinSizeMax = 3
+#parameters.minCornerDistanceRate = 0.02
+#parameters.minDistanceToBorder = 2
+#parameters.errorCorrectionRate = 1
+#parameters.maxErroneousBitsInBorderRate = .9
+
+
+
+#parameters.minOtsuStdDev = 0.1
+
+
+#parameters.cornerRefinementWinSize = 20
+#parameters.minDistanceToBorder = 5
+#parameters.adaptiveThreshWinSizeMax = 50
 
 # Face detect/obscuring parameters
 blockedFaces = []
@@ -170,6 +193,14 @@ while video_capture.isOpened():
         
             # Lists of ids and the corners beloning to each id
         corners, ids, rejectedImgPoints = aruco.detectMarkers(gray, aruco_dict, parameters=parameters)
+        aruco.drawDetectedMarkers(frame, rejectedImgPoints, borderColor=(0,0,255))
+        aruco.drawDetectedMarkers(frame, corners)
+
+        #for i in rejectedImgPoints:
+        #    corners.append(i)
+            #print(f'rejected: {i}')
+            #ids.append([1])
+
         if detectCount<detectDelay or ids is not None:
             if ids is None:
                 ids = []
@@ -192,8 +223,12 @@ while video_capture.isOpened():
             
             elif faces:
                 detectCount = 0
-                blockedFaces = getBlockedFaces(corners[0], faces)
+                blockedFaces = getBlockedFaces(corners, faces)
                 cv2.putText(frame, 'Marker detected - blocking', (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
+
+            else:
+                cv2.putText(frame, 'Not getting anything', (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
+                blockedFaces = []
 
 
 
