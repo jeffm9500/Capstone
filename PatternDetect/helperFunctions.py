@@ -32,7 +32,7 @@ def closestFace(prevCentre, faceCentres):
     return np.argmin(dist_2)
 
 def thresholdScore(x_diff, y_diff):
-    return (x_diff**2+y_diff)
+    return (x_diff**2.5+y_diff)
 
 def getFaceCentres(faces):
     faceCentres=[]
@@ -42,6 +42,14 @@ def getFaceCentres(faces):
 
 
 def getBlockedFaces(corners, faces):
+
+    """ TODO: 
+    - have the geometric box scale according to the size of the corners
+    - figure out the optimal value for minValidScore (min distance score before geometric approach enabled)
+    - generalize pixel values to ratios instead of absolute values in geometric approach
+    """
+
+    minValidScore = 6500
     blockedFaces = []
     faceCentres = []
 
@@ -67,8 +75,15 @@ def getBlockedFaces(corners, faces):
             y_diff = abs(faceCentre[1]-markerCentre[1])
             faceScore.append(thresholdScore(x_diff, y_diff))
 
+        print(f'Faces: {faces[np.argmin(faceScore)]}')
+
+
         # Append the face with the nearest centre to the new array
-        blockedFaces.append(faces[np.argmin(faceScore)])
+        if min(faceScore) < minValidScore:
+            blockedFaces.append(faces[np.argmin(faceScore)])
+        else:
+            blockedFaces.append([int(markerCentre[0]-70), int(markerCentre[1]-300),150,250])
+            print(blockedFaces)
     return blockedFaces
 
 def checkLostFaces(prevFaces, faces, w_dim, h_dim):

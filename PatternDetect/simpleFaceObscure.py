@@ -243,6 +243,8 @@ while video_capture.isOpened():
                 # want to make the condition that if a face disappears within the centre region of the frame, continue blocking the area (geometric approach, improves the blocking capacity)
                 # define centre region
                     # If the value of the centre of the face that disappears is within the border, keep blocking?
+
+                # OKAY NEW PLAN - if there is not one within the x bounds, then approximate
                 
                 len(ids) >= prevNumBlocked and checkLostFaces(prevFaces, faces, w_dim, h_dim)
 
@@ -258,8 +260,8 @@ while video_capture.isOpened():
 
 
             else:
-                cv2.putText(frame, 'Not getting anything', (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
-                blockedFaces = []
+                cv2.putText(frame, 'Markers, but no faces. Geometric approach.', (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
+                blockedFaces = getBlockedFaces(corners,[[2000,2000,1000,1000]])
 
 
 
@@ -274,7 +276,7 @@ while video_capture.isOpened():
             
 
         else:
-            cv2.putText(frame, 'No marker - showing faces', (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
+            cv2.putText(frame, 'No markers - showing faces', (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
         
         if args.record:
             video_output.write(frame)
@@ -283,11 +285,6 @@ while video_capture.isOpened():
     # Check if frame should be hidden
     if not args.hide:
         # Show frame
-        
-        if len(faces)>0:
-            #print("\n")
-            for (x,y,w,h) in faces:
-                cv2.rectangle(frame, (x, y), (x+w, y+h), (255, 0, 0), 1)
         cv2.imshow('PatternDetect', frame)
 
     prevNumBlocked = len(blockedFaces)
