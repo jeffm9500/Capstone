@@ -19,11 +19,29 @@ To quit, press q
 
 Also includes Aruco generation now.
 
-May need to install opencv-contrib-python to use aruco:
+Need to install the following:
+
 pip install opencv-contrib-python
+pip install ffmpeg
+pip install ffmpeg-python
+
+
+From https://github.com/BtbN/FFmpeg-Builds/releases
+Download:
+ffmpeg-n4.3.1-29-g89daac5fe2-win64-gpl-4.3.zip
+And unzip it
+(I unzipped it to c:/ffmpeg/ instead of the default)
+and add
+c:/ffmpeg/bin/
+to the PATH after unzipping
+(and restart your code environment after)
 
 Sample command line inputs:
 python PatternDetect/simpleFaceObscure.py -r -n "test_recording_1" -ui
-python PatternDetect/simpleFaceObscure.py -v "recordings/test_recording_1"
+^ Records a video without face detecting enabled
+python PatternDetect/simpleFaceObscure.py -v "test_recording_1"
+^ Watch a video with the pattern detection being applied to it
+python PatternDetect/simpleFaceObscure.py -v "input_recording.avi" -r -n "output_recording.avi"
+^ Take an input video and apply pattern detection to it, then save the output as a new video
 
 

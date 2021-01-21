@@ -6,6 +6,8 @@ import argparse
 from time import strftime
 from datetime import datetime
 from helperFunctions import *
+from imutils.video import FPS
+import ffmpeg
 
 t = time.time()
 
@@ -41,12 +43,16 @@ if args.video:
     video_capture = cv2.VideoCapture(in_folder + in_video_name)
     if(video_capture.isOpened() == False):
         print(f'Error opening video from: {in_folder}{in_video_name}')
+    # check if video requires rotation
+    rotateCode = check_rotation("recordings\\" + in_video_name)
 
 else:
     # Default to webcam as the input
     print("No video feed inputted, using webcam as input")
     video_capture = cv2.VideoCapture(0)
     in_video_name = "No input"  
+    # Assuming webcam does not rotate
+    rotateCode = None
     
 if args.record:
         
@@ -133,7 +139,7 @@ yMin = h_dim*.1
 yMax = h_dim*.9
 
 print(f'xMin: {xMin}\nxMax: {xMax}\nyMin: {yMin}\nyMax: {yMax}')
-
+fps = FPS().start()
 # Initialize webcam video stream:
 while video_capture.isOpened():
 
@@ -144,6 +150,10 @@ while video_capture.isOpened():
     if not success:
         print("End of video")
         break
+
+    # check if the frame needs to be rotated
+    if rotateCode is not None and rotateCode != 0:
+        frame = correct_rotation(frame, rotateCode)
 
     # If -ui is enabled, then only the raw webcam should be recorded
     if args.userint:
@@ -281,14 +291,16 @@ while video_capture.isOpened():
         if args.record:
             video_output.write(frame)
 
-    
+        prevNumBlocked = len(blockedFaces)
+        prevFaces = faces
+
     # Check if frame should be hidden
     if not args.hide:
         # Show frame
         cv2.imshow('PatternDetect', frame)
+        fps.update()
 
-    prevNumBlocked = len(blockedFaces)
-    prevFaces = faces
+    
 
     # "q" key pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -300,6 +312,8 @@ while video_capture.isOpened():
 video_capture.release()
 if args.record:
     video_output.release()
-
+fps.stop()
 print(f"Elapsed time: {time.time()-t:.2f}s")
+print("[INFO] elapsed time: {:.2f}".format(fps.elapsed()))
+print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
 cv2.destroyAllWindows()
