@@ -4,6 +4,7 @@ import numpy as np
 import os
 import time
 import argparse
+import ffmpeg
 
 
 def blur(blockedFaces, inFrame):
@@ -93,3 +94,23 @@ def checkLostFaces(prevFaces, faces, w_dim, h_dim):
         return False
     else:
         return False
+
+# Code from https://stackoverflow.com/questions/53097092/frame-from-video-is-upside-down-after-extracting
+def check_rotation(path_video_file):
+    # this returns meta-data of the video file in form of a dictionary
+    
+    meta_dict = ffmpeg.probe(path_video_file)
+
+    # from the dictionary, meta_dict['streams'][0]['tags']['rotate'] is the key
+    # we are looking for
+    rotateCode = None
+
+    rotate = meta_dict.get('streams', [dict(tags=dict())])[0].get('tags', dict()).get('rotate', 0)
+    rotateCode = round(int(rotate) / 90.0) * 90
+    print(f'Rotate Code:{rotateCode}')
+    return rotateCode
+
+def correct_rotation(frame, rotateCode):  
+    return cv2.rotate(frame, rotateCode) 
+
+
