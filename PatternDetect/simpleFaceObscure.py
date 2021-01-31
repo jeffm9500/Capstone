@@ -3,11 +3,19 @@ import sys
 import cv2.aruco as aruco
 import numpy as np
 import argparse
+import imutils
+import time
 from time import strftime
 from datetime import datetime
 from helperFunctions import *
+from FileVideoStream import FileVideoStream
 from imutils.video import FPS
+#from imutils.video import FileVideoStream
 import ffmpeg
+
+
+
+
 
 t = time.time()
 
@@ -24,7 +32,7 @@ parser.add_argument("--hide", action='store_true', help="Hide the output window"
 args = parser.parse_args()
 
 # Setting the recording's file name
-extension = ".m4v"
+extension = ".avi"
 if args.name:
     # Set the recording's name instead of the default date/time
     out_video_name = args.name #+ extension
@@ -40,25 +48,40 @@ if args.video:
     # Set input to be the video defined in the command line argument
     in_video_name = args.video #+ extension
     print(f"Video feed input from: {in_folder}{in_video_name}")
+
+    # check if video requires rotation
+    rotateCode = check_rotation("recordings\\" + in_video_name)
+
+    print(f'Starting video file thread...')
+    # check if the frame needs to be rotated
+    if rotateCode is not None and rotateCode != 0:
+        #frame = correct_rotation(frame, rotateCode)
+        fvs = FileVideoStream("recordings\\" + in_video_name, transform=cv2.rotate(rotateCode)).start()
+    else:
+        fvs = FileVideoStream("recordings\\" + in_video_name).start()
+    time.sleep(1.0)
+    """
     video_capture = cv2.VideoCapture(in_folder + in_video_name)
     if(video_capture.isOpened() == False):
         print(f'Error opening video from: {in_folder}{in_video_name}')
-    # check if video requires rotation
-    rotateCode = check_rotation("recordings\\" + in_video_name)
+    """
+    
 
 else:
     # Default to webcam as the input
     print("No video feed inputted, using webcam as input")
-    video_capture = cv2.VideoCapture(0)
+    # potentially can call fvs = FileVideoStream(0).start()
+    
+    fvs = FileVideoStream(path=0, backend=cv2.CAP_DSHOW).start()
+    #
     in_video_name = "No input"  
     # Assuming webcam does not rotate
-    rotateCode = None
+    #rotateCode = None
     
 if args.record:
         
     # Set the webcam to record, and output the recording 
-    print(f"Recording webcam and saving to file: {out_folder}{out_video_name}")
-    #video_capture = cv2.VideoCapture(0)
+    print(f"Recording and saving to file at: {out_folder}{out_video_name}")
 
 cascPath = "haarcascade_frontalface_default.xml"
 faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + cascPath)
@@ -68,8 +91,7 @@ profileFaceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + profileCascPa
 
 
 # Gather width and height of input webcam
-w_dim = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
-h_dim = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+w_dim, h_dim = fvs.getDim()
 
 
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
@@ -80,11 +102,14 @@ if args.record:
 print("debug:")
 print("in_video_name: " +str(in_video_name))
 print("out_video_name: " +str(out_video_name))
-print("input open: ",video_capture.isOpened())
+print("input open: ", fvs.running())
 if args.userint:
     print("ui disabled")
 if args.hide:
     print("window hidden")
+if args.blur:
+    print("blurring enabled")
+
 
 """
 SCRIPT PARAMETERS
@@ -141,19 +166,18 @@ yMax = h_dim*.9
 print(f'xMin: {xMin}\nxMax: {xMax}\nyMin: {yMin}\nyMax: {yMax}')
 fps = FPS().start()
 # Initialize webcam video stream:
-while video_capture.isOpened():
+#while video_capture.isOpened():
+while fvs.more():
+    # While loop will quit when queue is empty and flagToStop is True (set with the 's' key)
 
     # Capture frame-by-frame
-    success, frame = video_capture.read()
 
+    success, frame = fvs.read()
     # Check if the input video has ended
     if not success:
         print("End of video")
         break
 
-    # check if the frame needs to be rotated
-    if rotateCode is not None and rotateCode != 0:
-        frame = correct_rotation(frame, rotateCode)
 
     # If -ui is enabled, then only the raw webcam should be recorded
     if args.userint:
@@ -163,10 +187,11 @@ while video_capture.isOpened():
             video_output.write(frame)
 
     else:
-        
-        # Continue adding UI elements as normal     
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        """
+        # Continue adding UI elements as normal     
+        """
         faces = []
         # Detect front faces
         sf = 1.4
@@ -288,6 +313,9 @@ while video_capture.isOpened():
         else:
             cv2.putText(frame, 'No markers - showing faces', (20, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
         
+
+        cv2.putText(frame, "Queue Size: {}".format(fvs.Q.qsize()), (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
         if args.record:
             video_output.write(frame)
 
@@ -301,15 +329,27 @@ while video_capture.isOpened():
         fps.update()
 
     
-
+    pressedKey = cv2.waitKey(1) & 0xFF
     # "q" key pressed
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    if pressedKey == ord('q'):
+        print("Stopping")
         break
-
-
+    # "w" key is pressed
+    elif pressedKey == ord('w'):
+        # instead of breaking instantly, wait until the queue is processed
+        print("Stopping once queue is empty")
+        fvs.stop()
+        
+        
 
 # When everything is done, release the capture
-video_capture.release()
+"""
+if args.video:
+    fvs.release()
+else:
+    video_capture.release()
+"""
+fvs.release()
 if args.record:
     video_output.release()
 fps.stop()

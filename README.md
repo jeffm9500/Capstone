@@ -13,9 +13,12 @@ Command line arguments:
 -n, --name        Adds a specific name to the recording (only works when -r is used as well)
 -v, --video       Inputs a video to be run through the detection, input as a string
 -ui               Removes all UI features (detection boxes, text overlay, etc) for recording raw footage
+-b, --blur        Enables blurring instead of black box obscuring
+--hide            Hides the output window (if you just want to process videos)
 
 
-To quit, press q
+To finish processing queue, press w
+To quit and lose the queue, press q
 
 Also includes Aruco generation now.
 
