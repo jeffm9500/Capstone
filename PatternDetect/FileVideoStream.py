@@ -8,6 +8,7 @@ if sys.version_info >= (3, 0):
     from queue import Queue
 else:
     from Queue import Queue
+import imutils
 
 cascPath = "haarcascade_frontalface_default.xml"
 faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + cascPath)
@@ -21,13 +22,14 @@ profileFaceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + profileCascPa
 # and:
 # https://github.com/jrosebr1/imutils/blob/master/imutils/video/filevideostream.py
 class FileVideoStream:
-    def __init__(self, path, backend=None, transform=None, queueSize=128):
+    def __init__(self, path, backend=None, rotate=False, queueSize=128, rotateCode=0):
         # initialize the file video stream along with the boolean
         # used to indicate if the thread should be stopped or not
         self.stream = cv2.VideoCapture(path, backend)
         self.stopped = False
         self.stopping = False
-        self.transform = transform
+        self.rotate = rotate
+        self.rotateCode = rotateCode
         # initialize the queue used to store frames read from
         # the video file
         self.Q = Queue(maxsize=queueSize)
@@ -58,9 +60,10 @@ class FileVideoStream:
                     print("End of video - from inside thread")
                     self.stopped = True
                 else:
-                
-                    if self.transform:
-                        frame = self.transform(frame)
+                    
+                    if self.rotate:
+                        frame = imutils.rotate(frame, self.rotateCode)
+                    
                     self.Q.put(frame)
 
             else:
@@ -68,12 +71,15 @@ class FileVideoStream:
     
     def read(self):
         try:
-            frame = self.Q.get(True, 0.1)
+            frame = self.Q.get(True, 10.0)
         except queue.Empty:
             print("Queue empty")
             return False, None
         else:
-            return True, frame
+            if frame is not None:
+                return True, frame
+            else:
+                return False, frame
 
     def running(self):
         return self.more() or not self.stopped

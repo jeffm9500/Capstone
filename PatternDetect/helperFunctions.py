@@ -76,7 +76,7 @@ def getBlockedFaces(corners, faces):
             y_diff = abs(faceCentre[1]-markerCentre[1])
             faceScore.append(thresholdScore(x_diff, y_diff))
 
-        print(f'Faces: {faces[np.argmin(faceScore)]}')
+        #print(f'Faces: {faces[np.argmin(faceScore)]}')
 
 
         # Append the face with the nearest centre to the new array
@@ -84,7 +84,7 @@ def getBlockedFaces(corners, faces):
             blockedFaces.append(faces[np.argmin(faceScore)])
         else:
             blockedFaces.append([int(markerCentre[0]-70), int(markerCentre[1]-300),150,250])
-            print(blockedFaces)
+            #print(blockedFaces)
     return blockedFaces
 
 def checkLostFaces(prevFaces, faces, w_dim, h_dim):
@@ -98,15 +98,24 @@ def checkLostFaces(prevFaces, faces, w_dim, h_dim):
 # Code from https://stackoverflow.com/questions/53097092/frame-from-video-is-upside-down-after-extracting
 def check_rotation(path_video_file):
     # this returns meta-data of the video file in form of a dictionary
+    try:
+        meta_dict = ffmpeg.probe(path_video_file)
+    except ffmpeg.Error as e:
+        print('stdout:', e.stdout.decode('utf8'))
+        print('stderr:', e.stderr.decode('utf8'))
+        raise e
     
-    meta_dict = ffmpeg.probe(path_video_file)
 
-    # from the dictionary, meta_dict['streams'][0]['tags']['rotate'] is the key
-    # we are looking for
     rotateCode = None
+    # Check extension name:
+    
+    if path_video_file.lower().endswith('.mov'):
+        rotate = meta_dict.get('streams', [dict(tags=dict())])[1].get('tags', dict()).get('rotate', 0)
+        rotateCode = round(int(rotate) / 90.0) * 90
+    else:
+        rotate = meta_dict.get('streams', [dict(tags=dict())])[0].get('tags', dict()).get('rotate', 0)
+        rotateCode = round(int(rotate) / 90.0) * 90
 
-    rotate = meta_dict.get('streams', [dict(tags=dict())])[0].get('tags', dict()).get('rotate', 0)
-    rotateCode = round(int(rotate) / 90.0) * 90
     print(f'Rotate Code:{rotateCode}')
     return rotateCode
 

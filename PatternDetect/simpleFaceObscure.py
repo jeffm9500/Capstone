@@ -56,7 +56,7 @@ if args.video:
     # check if the frame needs to be rotated
     if rotateCode is not None and rotateCode != 0:
         #frame = correct_rotation(frame, rotateCode)
-        fvs = FileVideoStream("recordings\\" + in_video_name, transform=cv2.rotate(rotateCode)).start()
+        fvs = FileVideoStream("recordings\\" + in_video_name, rotate=True, rotateCode=rotateCode).start()
     else:
         fvs = FileVideoStream("recordings\\" + in_video_name).start()
     time.sleep(1.0)
