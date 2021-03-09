@@ -122,4 +122,3 @@ def check_rotation(path_video_file):
 def correct_rotation(frame, rotateCode):  
     return cv2.rotate(frame, rotateCode) 
 
-

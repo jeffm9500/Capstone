@@ -1,8 +1,7 @@
 # Custom ignores for this specific project:
 recordings/
-
-
-
+faceDetectTesting/
+faces/
 
 
 
